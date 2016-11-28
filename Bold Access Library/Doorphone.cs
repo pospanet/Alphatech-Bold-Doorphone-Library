@@ -4,18 +4,25 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Microsoft.BAL
 {
-    public class Doorphone
+    public class Doorphone : IDisposable
     {
+        #region Events webpage constants
+
         private const string UrlPattern = "http://{0}:{1}";
         private const int HttpTimeout = 30;
         private const string BoldClientDefaultUserAgent = "UDVPanel_3.1";
         private const string EventsPath = "events.txt";
 
-        private readonly HttpClient httpClient;
+        #endregion
+
+        private readonly HttpClient _httpClient;
+
+        #region Properties
 
         public string Hostname { get; private set; }
         private const string HostnameKey = "NET_HOSTNAME";
@@ -24,193 +31,111 @@ namespace Microsoft.BAL
         public string FwVersion { get; private set; }
         private const string FwVersionKey = "VERSION";
 
-        public event DoorEventHandler DoorEvent;
+        #endregion
+
+        public event BoldEventHandler BoldEvent;
+
+        public bool IsInitialized { get; private set; }
 
         public Doorphone(IPAddress address, int port = 80)
         {
-            httpClient = new HttpClient
+            _httpClient = new HttpClient
             {
                 BaseAddress = new Uri(string.Format(UrlPattern, address, port)),
                 Timeout = TimeSpan.FromSeconds(HttpTimeout)
             };
-            httpClient.DefaultRequestHeaders.Add("User-Agent", BoldClientDefaultUserAgent);
-            Initialize();
+            _httpClient.DefaultRequestHeaders.Add("User-Agent", BoldClientDefaultUserAgent);
+            IsInitialized = false;
         }
 
-        private void Initialize()
-        {
-            Task<Dictionary<string, string>> readTask = ReadConfigAsync();
-            Task.WhenAll(readTask);
-            Dictionary<string, string> values = readTask.Result;
-            Hostname = values.Where(val => val.Key.Equals(HostnameKey)).Select(val => val.Value).First();
-            string ipString = values.Where(val => val.Key.Equals(IpKey)).Select(val => val.Value).First();
-            Ip = new IPAddress(ipString.Split('.').Select(byte.Parse).ToArray());
-            FwVersion = values.Where(val => val.Key.Equals(FwVersionKey)).Select(val => val.Value).First();
-        }
+        private List<BoldBaseEvent> _lastBoldEvents = new List<BoldBaseEvent>();
 
-        private async Task<IEnumerable<BoldBaseEvent>> ReadEventsAsync()
+        public async Task Initialize()
         {
             List<BoldBaseEvent> boldEvents = new List<BoldBaseEvent>();
-            HttpResponseMessage response = await httpClient.GetAsync(EventsPath);
-            using (
-                BoldEventsStreamReader eventReader =
-                    new BoldEventsStreamReader(await response.Content.ReadAsStreamAsync()))
+            Stream dataStream = await GetEventsDataAsync();
+            using (BoldEventsStreamReader eventReader = new BoldEventsStreamReader(dataStream))
             {
-                while (!eventReader.EndOfStream)
+                Dictionary<string, string> configValues = eventReader.GetSetting();
+                Hostname = configValues.Where(val => val.Key.Equals(HostnameKey)).Select(val => val.Value).First();
+                string ipString = configValues.Where(val => val.Key.Equals(IpKey)).Select(val => val.Value).First();
+                Ip = new IPAddress(ipString.Split('.').Select(byte.Parse).ToArray());
+                FwVersion = configValues.Where(val => val.Key.Equals(FwVersionKey)).Select(val => val.Value).First();
+                Dictionary<string, string> values = eventReader.GetNextEvent();
+                while (values != null)
                 {
-                    Dictionary<string, string> values = eventReader.GetNextEvent();
                     BoldBaseEvent boldEvent = BoldBaseEvent.CreateEvent(values);
                     boldEvents.Add(boldEvent);
+                    values = eventReader.GetNextEvent();
                 }
             }
-            return boldEvents;
+            _lastBoldEvents = boldEvents;
+            IsInitialized = true;
         }
-        private async Task<Dictionary<string, string>> ReadConfigAsync()
+
+        public async Task ListenAsync(CancellationToken token)
         {
-            HttpResponseMessage response = await httpClient.GetAsync(EventsPath);
-            using (
-                BoldEventsStreamReader reader =
-                    new BoldEventsStreamReader(await response.Content.ReadAsStreamAsync()))
+            while (!token.IsCancellationRequested)
             {
-                return reader.GetSetting();
+                await CheckEventsAsync();
             }
-
         }
 
-        protected virtual void OnDoorEvent(DoorEventHandlerArgs args)
+        private async Task CheckEventsAsync()
         {
-            DoorEvent?.Invoke(this, args);
-        }
-    }
-
-    internal class BoldEventsStreamReader : IDisposable
-    {
-        private const string SettingSectionHeader = "[setting]";
-        private const string EventSectionHeader = "[evstat]";
-
-        private readonly StreamReader _streamReader;
-        private string _lastDataLine;
-
-        public BoldEventsStreamReader(Stream stream)
-        {
-            _streamReader = new StreamReader(stream);
-        }
-
-        public bool EndOfStream => _streamReader.EndOfStream;
-
-        public Dictionary<string, string> GetSetting()
-        {
-            return GetSection(SettingSectionHeader);
-        }
-
-        public Dictionary<string, string> GetNextEvent()
-        {
-            return GetSection(EventSectionHeader);
-        }
-
-        private Dictionary<string, string> GetSection(string sectionHeader)
-        {
-            Dictionary<string, string> sectionData = new Dictionary<string, string>();
-            do
+            List<BoldBaseEvent> boldEvents = new List<BoldBaseEvent>();
+            Stream dataStream = await GetEventsDataAsync();
+            using (BoldEventsStreamReader eventReader = new BoldEventsStreamReader(dataStream))
             {
-                string[] pair = _lastDataLine.Split('=');
-                sectionData.Add(pair[0].Trim(), pair[1].Trim('"').Trim());
-                _lastDataLine = _streamReader.ReadLine().Trim();
-            } while (!string.IsNullOrEmpty(_lastDataLine));
-            do
+                Dictionary<string, string> values = eventReader.GetNextEvent();
+                while (values != null)
+                {
+                    BoldBaseEvent boldEvent = BoldBaseEvent.CreateEvent(values);
+                    boldEvents.Add(boldEvent);
+                    values = eventReader.GetNextEvent();
+                }
+            }
+            foreach (BoldBaseEvent boldEvent in boldEvents)
             {
-                _lastDataLine = _streamReader.ReadLine().Trim();
-            } while (!_lastDataLine.Equals(sectionHeader));
-            return sectionData;
+                IEnumerable<BoldBaseEvent> lastBoldEvent =
+                    _lastBoldEvents.Where(e => e.IsSameSourceInternal(boldEvent)).ToArray();
+                if (lastBoldEvent.Any())
+                {
+                    OnBoldEvent(lastBoldEvent.First(), boldEvent);
+                }
+            }
+        }
+
+        private async Task<Stream> GetEventsDataAsync()
+        {
+            using (HttpResponseMessage response = await _httpClient.GetAsync(EventsPath))
+            {
+                Stream responseContent = await response.Content.ReadAsStreamAsync();
+                MemoryStream outStream = new MemoryStream();
+                await responseContent.CopyToAsync(outStream);
+                outStream.Seek(0, SeekOrigin.Begin);
+                return outStream;
+            }
+        }
+
+        internal void OnBoldEvent(BoldBaseEvent oldBoldEvent, BoldBaseEvent newBoldEvent)
+        {
+            if (newBoldEvent.EventValueChanged(oldBoldEvent))
+            {
+                BoldEventHandlerArgs args = newBoldEvent.CreateBoldEventHandlerArgs(oldBoldEvent);
+                BoldEvent?.Invoke(this, args);
+            }
         }
 
         public void Dispose()
         {
-            _streamReader.Dispose();
+            _httpClient.Dispose();
         }
     }
 
-    internal abstract class BoldBaseEvent
+    public delegate void BoldEventHandler(object sender, BoldEventHandlerArgs args);
+
+    public class BoldEventHandlerArgs
     {
-        private const string EventTypeKey = "EVENT";
-        private const string RegistrationEventTypeKey = "REGISTRATION";
-        private const string CallEventTypeKey = "CALL";
-        private const string GuardEventTypeKey = "GUARD";
-
-        protected BoldBaseEvent()
-        {
-        }
-
-        internal static BoldBaseEvent CreateEvent(Dictionary<string, string> values)
-        {
-            BoldBaseEvent boldBaseEvent;
-            KeyValuePair<string, string> eventPair = values.First();
-            switch (eventPair.Key)
-            {
-                case RegistrationEventTypeKey:
-                    boldBaseEvent = new RegistrationEvent();
-                    break;
-                case CallEventTypeKey:
-                    boldBaseEvent = new CallEvent();
-                    break;
-                case GuardEventTypeKey:
-                    boldBaseEvent = new GuardEvent();
-                    break;
-                default:
-                    boldBaseEvent = new UnknownBoldEvent();
-                    break;
-            }
-            boldBaseEvent.Initialize(values);
-            return boldBaseEvent;
-        }
-
-        protected abstract void Initialize(Dictionary<string, string> values);
-
-    }
-
-    internal class UnknownBoldEvent : BoldBaseEvent
-    {
-
-        protected override void Initialize(Dictionary<string, string> values)
-        {
-            throw new NotImplementedException();
-        }
-    }
-
-    internal class GuardEvent : BoldBaseEvent
-    {
-        protected override void Initialize(Dictionary<string, string> values)
-        {
-            throw new NotImplementedException();
-        }
-    }
-
-    internal class CallEvent : BoldBaseEvent
-    {
-        protected override void Initialize(Dictionary<string, string> values)
-        {
-            throw new NotImplementedException();
-        }
-    }
-    internal class RegistrationEvent : BoldBaseEvent
-    {
-        protected override void Initialize(Dictionary<string, string> values)
-        {
-            throw new NotImplementedException();
-        }
-    }
-
-    public delegate void DoorEventHandler(object sender, DoorEventHandlerArgs args);
-
-    public class DoorEventHandlerArgs
-    {
-        public int DoorId { get; }
-        public DoorStatus DoorStatus { get; }
-    }
-
-    public enum DoorStatus
-    {
-        Open,
-        Closed
     }
 }
