@@ -120,7 +120,7 @@ namespace Microsoft.BAL
 
         internal void OnBoldEvent(BoldBaseEvent oldBoldEvent, BoldBaseEvent newBoldEvent)
         {
-            if (newBoldEvent.EventValueChanged(oldBoldEvent))
+            if (newBoldEvent.HasEventValueChange(oldBoldEvent))
             {
                 BoldEventHandlerArgs args = newBoldEvent.CreateBoldEventHandlerArgs(oldBoldEvent);
                 BoldEvent?.Invoke(this, args);

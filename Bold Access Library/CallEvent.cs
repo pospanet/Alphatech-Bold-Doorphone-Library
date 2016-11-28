@@ -15,7 +15,7 @@ namespace Microsoft.BAL
             throw new NotImplementedException();
         }
 
-        protected internal override bool EventValueChanged(BoldBaseEvent boldEvent)
+        protected internal override bool HasEventValueChange(BoldBaseEvent boldEvent)
         {
             throw new NotImplementedException();
         }
