@@ -36,27 +36,28 @@ namespace Microsoft.BAL
 
         public bool IsInitialized { get; private set; }
 
-        private readonly IPAddress _boldAddress;
-        private readonly int _boldPort;
+        private readonly IPEndPoint _remoteEndPoint;
         private readonly BackgroundWorker _backgroundWorker;
 
         public Doorphone(IPAddress address, int port = 80)
         {
             _socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             IsInitialized = false;
-            _boldAddress = address;
-            _boldPort = port;
-            _backgroundWorker = new BackgroundWorker();
-        }
 
-        private List<BoldBaseEvent> _lastBoldEvents = new List<BoldBaseEvent>();
+            _remoteEndPoint = new IPEndPoint(address, port);
+            _backgroundWorker = new BackgroundWorker
+            {
+                WorkerReportsProgress = false,
+                WorkerSupportsCancellation = false
+            };
+        }
 
         public async Task<bool> InitializeAsync()
         {
             AsyncAutoResetEvent autoResetEvent = new AsyncAutoResetEvent();
             SocketAsyncEventArgs args = new SocketAsyncEventArgs
             {
-                RemoteEndPoint = new IPEndPoint(_boldAddress, _boldPort)
+                RemoteEndPoint = _remoteEndPoint
             };
             args.Completed += SocketConnect_Completed;
             args.UserToken = autoResetEvent;
@@ -69,8 +70,18 @@ namespace Microsoft.BAL
             {
                 return false;
             }
-            string data = await GetEventListAsync(_socket, _boldAddress);
-            List<BoldBaseEvent> boldEvents = new List<BoldBaseEvent>();
+
+            string data = await GetEventListAsync(_socket, _remoteEndPoint.Address);
+            ReadBoldSettings(data);
+            _backgroundWorker.DoWork += BackgroundWorker_DoWork;
+            _backgroundWorker.RunWorkerCompleted += BackgroundWorker_RunWorkerCompleted;
+            _backgroundWorker.RunWorkerAsync(_socket);
+            return IsInitialized = true;
+        }
+
+        private void ReadBoldSettings(string data)
+        {
+
             using (BoldEventsStreamReader eventReader = new BoldEventsStreamReader(data))
             {
                 Dictionary<string, string> configValues = eventReader.GetSetting();
@@ -78,6 +89,14 @@ namespace Microsoft.BAL
                 string ipString = configValues.Where(val => val.Key.Equals(IpKey)).Select(val => val.Value).First();
                 Ip = new IPAddress(ipString.Split('.').Select(byte.Parse).ToArray());
                 FwVersion = configValues.Where(val => val.Key.Equals(FwVersionKey)).Select(val => val.Value).First();
+            }
+        }
+
+        private IEnumerable<BoldBaseEvent> GetBoldEvents(string data)
+        {
+            List<BoldBaseEvent> boldEvents = new List<BoldBaseEvent>();
+            using (BoldEventsStreamReader eventReader = new BoldEventsStreamReader(data))
+            {
                 Dictionary<string, string> values = eventReader.GetNextEvent();
                 while (values != null)
                 {
@@ -86,27 +105,23 @@ namespace Microsoft.BAL
                     values = eventReader.GetNextEvent();
                 }
             }
-            _lastBoldEvents = boldEvents;
-            _backgroundWorker.DoWork += BackgroundWorker_DoWork;
-            _backgroundWorker.RunWorkerCompleted += BackgroundWorker_RunWorkerCompleted;
-            _backgroundWorker.ProgressChanged += BackgroundWorker_ProgressChanged;
-            _backgroundWorker.RunWorkerAsync(_socket);
-            return IsInitialized = true;
-        }
-
-        private void BackgroundWorker_ProgressChanged(object sender, ProgressChangedEventArgs e)
-        {
-            throw new NotImplementedException();
+            return boldEvents;
         }
 
         private void BackgroundWorker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
         {
-            throw new NotImplementedException();
+            _backgroundWorker.RunWorkerAsync();
         }
 
         private void BackgroundWorker_DoWork(object sender, DoWorkEventArgs e)
         {
-            throw new NotImplementedException();
+            Task<string> task = GetEventListAsync(_socket, _remoteEndPoint.Address);
+            Task.WaitAll(task);
+            IEnumerable<BoldBaseEvent> boldEvents = GetBoldEvents(task.Result);
+            foreach (BoldBaseEvent boldEvent in boldEvents)
+            {
+                OnBoldEvent(boldEvent);
+            }
         }
 
         private static async Task<string> GetEventListAsync(Socket socket, IPAddress ip)
