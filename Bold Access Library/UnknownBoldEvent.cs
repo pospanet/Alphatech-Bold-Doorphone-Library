@@ -20,7 +20,7 @@ namespace Microsoft.BAL
             throw new NotImplementedException();
         }
 
-        protected internal override BoldEventHandlerArgs CreateBoldEventHandlerArgs(BoldBaseEvent boldEvent)
+        protected internal override BoldEventHandlerArgs CreateBoldEventHandlerArgs()
         {
             throw new NotImplementedException();
         }

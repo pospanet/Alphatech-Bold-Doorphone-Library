@@ -42,7 +42,7 @@ namespace Microsoft.BAL
             return !SensorStatus.Equals(((GuardEvent) boldEvent).SensorStatus);
         }
 
-        protected internal override BoldEventHandlerArgs CreateBoldEventHandlerArgs(BoldBaseEvent boldEvent)
+        protected internal override BoldEventHandlerArgs CreateBoldEventHandlerArgs()
         {
             BoldEventHandlerArgs eventHandlerArgs;
             switch (SensorId[1])

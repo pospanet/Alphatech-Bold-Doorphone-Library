@@ -42,6 +42,6 @@ namespace Microsoft.BAL
 
         protected internal abstract bool IsSameSourceInternal(BoldBaseEvent boldEvent);
         protected internal abstract bool HasEventValueChange(BoldBaseEvent boldEvent);
-        protected internal abstract BoldEventHandlerArgs CreateBoldEventHandlerArgs(BoldBaseEvent boldEvent);
+        protected internal abstract BoldEventHandlerArgs CreateBoldEventHandlerArgs();
     }
 }

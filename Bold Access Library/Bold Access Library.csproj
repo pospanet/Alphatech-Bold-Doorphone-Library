@@ -107,6 +107,7 @@
     <None Include="project.json" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AsyncAutoResetEvent.cs" />
     <Compile Include="BoldBaseEvent.cs" />
     <Compile Include="BoldEventsStreamReader.cs" />
     <Compile Include="CallEvent.cs" />

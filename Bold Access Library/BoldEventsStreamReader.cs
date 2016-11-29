@@ -9,12 +9,12 @@ namespace Microsoft.BAL
         private const string SettingSectionHeader = "[setting]";
         private const string EventSectionHeader = "[evstat]";
 
-        private readonly StreamReader _streamReader;
+        private readonly StringReader _streamReader;
         private string _lastDataLine;
 
-        public BoldEventsStreamReader(Stream stream)
+        public BoldEventsStreamReader(string text)
         {
-            _streamReader = new StreamReader(stream);
+            _streamReader = new StringReader(text);
         }
 
         public Dictionary<string, string> GetSetting()
@@ -29,15 +29,15 @@ namespace Microsoft.BAL
 
         private Dictionary<string, string> GetSection(string sectionHeader)
         {
-            if (_streamReader.EndOfStream)
+            if (_streamReader.Peek().Equals(-1))
             {
                 return null;
             }
             do
             {
                 _lastDataLine = _streamReader.ReadLine().Trim();
-            } while (!_lastDataLine.Equals(sectionHeader) || !_streamReader.EndOfStream);
-            if (_streamReader.EndOfStream)
+            } while (!_lastDataLine.Equals(sectionHeader) || !_streamReader.Peek().Equals(-1));
+            if (_streamReader.Peek().Equals(-1))
             {
                 return null;
             }
