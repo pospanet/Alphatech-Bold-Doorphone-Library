@@ -33,21 +33,23 @@ namespace Microsoft.BAL
             {
                 return null;
             }
-            do
+            _lastDataLine = _streamReader.ReadLine().Trim();
+            while (!_lastDataLine.Equals(sectionHeader) && !_streamReader.Peek().Equals(-1))
             {
                 _lastDataLine = _streamReader.ReadLine().Trim();
-            } while (!_lastDataLine.Equals(sectionHeader) || !_streamReader.Peek().Equals(-1));
+            } 
             if (_streamReader.Peek().Equals(-1))
             {
                 return null;
             }
             Dictionary<string, string> sectionData = new Dictionary<string, string>();
-            do
+            _lastDataLine = _streamReader.ReadLine().Trim();
+            while (!string.IsNullOrEmpty(_lastDataLine))
             {
                 string[] pair = _lastDataLine.Split('=');
                 sectionData.Add(pair[0].Trim(), pair[1].Trim('"').Trim());
                 _lastDataLine = _streamReader.ReadLine().Trim();
-            } while (!string.IsNullOrEmpty(_lastDataLine));
+            }
             return sectionData;
         }
 

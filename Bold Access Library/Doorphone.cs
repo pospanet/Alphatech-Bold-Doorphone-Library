@@ -13,7 +13,7 @@ namespace Microsoft.BAL
     {
         #region Events webpage constants
 
-        private const string HttpGetCommand = " GET /events.txt HTTP/1.1";
+        private const string HttpGetCommand = "GET /events.txt HTTP/1.1";
         private const string BoldClientDefaultUserAgentHttpHeader = "User-Agent: UDVPanel_3.1";
         private const string BoldClientHostHttpHeader = "Host: ";
 
@@ -75,7 +75,7 @@ namespace Microsoft.BAL
             ReadBoldSettings(data);
             _backgroundWorker.DoWork += BackgroundWorker_DoWork;
             _backgroundWorker.RunWorkerCompleted += BackgroundWorker_RunWorkerCompleted;
-            _backgroundWorker.RunWorkerAsync(_socket);
+            _backgroundWorker.RunWorkerAsync();
             return IsInitialized = true;
         }
 
@@ -155,7 +155,8 @@ namespace Microsoft.BAL
             sb.AppendLine(BoldClientDefaultUserAgentHttpHeader);
             sb.AppendLine(string.Concat(BoldClientHostHttpHeader, ip));
             sb.AppendLine();
-            return Encoding.ASCII.GetBytes(sb.ToString());
+            string request = sb.ToString();
+            return Encoding.ASCII.GetBytes(request);
         }
 
         private static void SocketConnect_Completed(object sender, SocketAsyncEventArgs e)
