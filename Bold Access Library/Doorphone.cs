@@ -1,12 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
+using System.ComponentModel;
 using System.Linq;
 using System.Net;
-using System.Net.Http;
 using System.Net.Sockets;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace Microsoft.BAL
@@ -40,6 +38,7 @@ namespace Microsoft.BAL
 
         private readonly IPAddress _boldAddress;
         private readonly int _boldPort;
+        private readonly BackgroundWorker _backgroundWorker;
 
         public Doorphone(IPAddress address, int port = 80)
         {
@@ -47,6 +46,7 @@ namespace Microsoft.BAL
             IsInitialized = false;
             _boldAddress = address;
             _boldPort = port;
+            _backgroundWorker = new BackgroundWorker();
         }
 
         private List<BoldBaseEvent> _lastBoldEvents = new List<BoldBaseEvent>();
@@ -87,13 +87,31 @@ namespace Microsoft.BAL
                 }
             }
             _lastBoldEvents = boldEvents;
+            _backgroundWorker.DoWork += BackgroundWorker_DoWork;
+            _backgroundWorker.RunWorkerCompleted += BackgroundWorker_RunWorkerCompleted;
+            _backgroundWorker.ProgressChanged += BackgroundWorker_ProgressChanged;
+            _backgroundWorker.RunWorkerAsync(_socket);
             return IsInitialized = true;
+        }
+
+        private void BackgroundWorker_ProgressChanged(object sender, ProgressChangedEventArgs e)
+        {
+            throw new NotImplementedException();
+        }
+
+        private void BackgroundWorker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
+        {
+            throw new NotImplementedException();
+        }
+
+        private void BackgroundWorker_DoWork(object sender, DoWorkEventArgs e)
+        {
+            throw new NotImplementedException();
         }
 
         private static async Task<string> GetEventListAsync(Socket socket, IPAddress ip)
         {
             AsyncAutoResetEvent autoResetEvent = new AsyncAutoResetEvent();
-            byte[] data = CreateEventListRequest(ip);
             byte[] buffer = CreateEventListRequest(ip);
             SocketAsyncEventArgs args = new SocketAsyncEventArgs();
             args.SetBuffer(buffer, 0, buffer.Length);
@@ -131,50 +149,18 @@ namespace Microsoft.BAL
             autoResetEvent.Set();
         }
 
-        public async Task ListenAsync(CancellationToken token)
+        internal void OnBoldEvent(BoldBaseEvent boldEvent)
         {
-            while (!token.IsCancellationRequested)
-            {
-                await CheckEventsAsync();
-            }
-        }
-
-        private async Task CheckEventsAsync()
-        {
-            List<BoldBaseEvent> boldEvents = new List<BoldBaseEvent>();
-            string data = await GetEventListAsync(_socket, _boldAddress);
-            using (BoldEventsStreamReader eventReader = new BoldEventsStreamReader(data))
-            {
-                Dictionary<string, string> values = eventReader.GetNextEvent();
-                while (values != null)
-                {
-                    BoldBaseEvent boldEvent = BoldBaseEvent.CreateEvent(values);
-                    boldEvents.Add(boldEvent);
-                    values = eventReader.GetNextEvent();
-                }
-            }
-            foreach (BoldBaseEvent boldEvent in boldEvents)
-            {
-                IEnumerable<BoldBaseEvent> lastBoldEvent =
-                    _lastBoldEvents.Where(e => e.IsSameSourceInternal(boldEvent)).ToArray();
-                if (lastBoldEvent.Any())
-                {
-                    OnBoldEvent(lastBoldEvent.First(), boldEvent);
-                }
-            }
-        }
-
-        internal void OnBoldEvent(BoldBaseEvent oldBoldEvent, BoldBaseEvent newBoldEvent)
-        {
-            if (newBoldEvent.HasEventValueChange(oldBoldEvent))
-            {
-                BoldEventHandlerArgs args = newBoldEvent.CreateBoldEventHandlerArgs();
-                BoldEvent?.Invoke(this, args);
-            }
+            BoldEventHandlerArgs args = boldEvent.CreateBoldEventHandlerArgs();
+            BoldEvent?.Invoke(this, args);
         }
 
         public void Dispose()
         {
+            if (IsInitialized)
+            {
+                _socket.Shutdown(SocketShutdown.Both);
+            }
             _socket.Dispose();
         }
     }
