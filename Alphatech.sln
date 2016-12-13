@@ -9,6 +9,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Documentations", "Documenta
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bold Access Library Test Client", "Bold Access Library Test Client\Bold Access Library Test Client.csproj", "{5F920D03-925C-4917-B988-5E6A7E8BF8D5}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bold Extender", "Bold Extender\Bold Extender.csproj", "{545DFC6F-CE13-47A2-AAA2-417CFA55B5CC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -57,6 +59,26 @@ Global
 		{5F920D03-925C-4917-B988-5E6A7E8BF8D5}.Release|x86.ActiveCfg = Release|x86
 		{5F920D03-925C-4917-B988-5E6A7E8BF8D5}.Release|x86.Build.0 = Release|x86
 		{5F920D03-925C-4917-B988-5E6A7E8BF8D5}.Release|x86.Deploy.0 = Release|x86
+		{545DFC6F-CE13-47A2-AAA2-417CFA55B5CC}.Debug|Any CPU.ActiveCfg = Debug|x86
+		{545DFC6F-CE13-47A2-AAA2-417CFA55B5CC}.Debug|ARM.ActiveCfg = Debug|ARM
+		{545DFC6F-CE13-47A2-AAA2-417CFA55B5CC}.Debug|ARM.Build.0 = Debug|ARM
+		{545DFC6F-CE13-47A2-AAA2-417CFA55B5CC}.Debug|ARM.Deploy.0 = Debug|ARM
+		{545DFC6F-CE13-47A2-AAA2-417CFA55B5CC}.Debug|x64.ActiveCfg = Debug|x64
+		{545DFC6F-CE13-47A2-AAA2-417CFA55B5CC}.Debug|x64.Build.0 = Debug|x64
+		{545DFC6F-CE13-47A2-AAA2-417CFA55B5CC}.Debug|x64.Deploy.0 = Debug|x64
+		{545DFC6F-CE13-47A2-AAA2-417CFA55B5CC}.Debug|x86.ActiveCfg = Debug|x86
+		{545DFC6F-CE13-47A2-AAA2-417CFA55B5CC}.Debug|x86.Build.0 = Debug|x86
+		{545DFC6F-CE13-47A2-AAA2-417CFA55B5CC}.Debug|x86.Deploy.0 = Debug|x86
+		{545DFC6F-CE13-47A2-AAA2-417CFA55B5CC}.Release|Any CPU.ActiveCfg = Release|x86
+		{545DFC6F-CE13-47A2-AAA2-417CFA55B5CC}.Release|ARM.ActiveCfg = Release|ARM
+		{545DFC6F-CE13-47A2-AAA2-417CFA55B5CC}.Release|ARM.Build.0 = Release|ARM
+		{545DFC6F-CE13-47A2-AAA2-417CFA55B5CC}.Release|ARM.Deploy.0 = Release|ARM
+		{545DFC6F-CE13-47A2-AAA2-417CFA55B5CC}.Release|x64.ActiveCfg = Release|x64
+		{545DFC6F-CE13-47A2-AAA2-417CFA55B5CC}.Release|x64.Build.0 = Release|x64
+		{545DFC6F-CE13-47A2-AAA2-417CFA55B5CC}.Release|x64.Deploy.0 = Release|x64
+		{545DFC6F-CE13-47A2-AAA2-417CFA55B5CC}.Release|x86.ActiveCfg = Release|x86
+		{545DFC6F-CE13-47A2-AAA2-417CFA55B5CC}.Release|x86.Build.0 = Release|x86
+		{545DFC6F-CE13-47A2-AAA2-417CFA55B5CC}.Release|x86.Deploy.0 = Release|x86
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

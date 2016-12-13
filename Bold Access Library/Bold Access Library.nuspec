@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>Microsoft.BAL</id>
+    <version>$version$</version>
+    <title>$title$</title>
+    <authors>Jan Pospisil @ Microsoft -&lt;{Pospa}>-</authors>
+    <owners>Microsoft</owners>
+    <licenseUrl>https://github.com/pospanet/Alphatech-Bold-Doorphone-Library/blob/master/README.md</licenseUrl>
+    <projectUrl>https://github.com/pospanet/Alphatech-Bold-Doorphone-Library</projectUrl>
+    <iconUrl>http://www.alphatechtechnologies.cz/foto/428.png</iconUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>Bold Doorphone Library</description>
+    <releaseNotes>Initial alpha release</releaseNotes>
+    <copyright>CopyrightMicrosoft 2016</copyright>
+    <tags>Alphatech Doorphone Bold BAL</tags>
+  </metadata>
+</package>

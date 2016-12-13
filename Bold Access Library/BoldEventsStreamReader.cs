@@ -7,7 +7,7 @@ namespace Microsoft.BAL
     internal class BoldEventsStreamReader : IDisposable
     {
         private const string SettingSectionHeader = "[setting]";
-        private const string EventSectionHeader = "[evstat]";
+        private const string EventSectionHeader = "[event]";
 
         private readonly StringReader _streamReader;
         private string _lastDataLine;

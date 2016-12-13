@@ -14,7 +14,7 @@ namespace Microsoft.BAL
         {
             BoldBaseEvent boldBaseEvent;
             KeyValuePair<string, string> eventPair = values.First(p => p.Key.Equals(EventTypeKey));
-            switch (eventPair.Key)
+            switch (eventPair.Value)
             {
                 case RegistrationEventTypeKey:
                     boldBaseEvent = new RegistrationEvent();
