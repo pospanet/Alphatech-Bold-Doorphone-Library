@@ -19,9 +19,7 @@ namespace Microsoft.BAL
 
         #endregion
 
-        private readonly Socket _socket;
-
-        #region Properties
+        #region Public properties
 
         public string Hostname { get; private set; }
         private const string HostnameKey = "NET_HOSTNAME";
@@ -30,14 +28,22 @@ namespace Microsoft.BAL
         public string FwVersion { get; private set; }
         private const string FwVersionKey = "VERSION";
 
-        #endregion
-
+        public bool IsInitialized { get; private set; }
         public event BoldEventHandler BoldEvent;
 
-        public bool IsInitialized { get; private set; }
+        public event BoldImageEventHandler BoldImageEventHandler;
+
+        #endregion
+
+        #region Private properties
 
         private readonly IPEndPoint _remoteEndPoint;
         private readonly BackgroundWorker _backgroundWorker;
+        private readonly Socket _socket;
+
+        #endregion
+
+        #region Constructor
 
         public Doorphone(IPAddress address, int port = 80)
         {
@@ -52,20 +58,14 @@ namespace Microsoft.BAL
             };
         }
 
+        #endregion
+
+        #region Public methods
+
         public async Task<bool> InitializeAsync()
         {
-            AsyncAutoResetEvent autoResetEvent = new AsyncAutoResetEvent();
-            SocketAsyncEventArgs args = new SocketAsyncEventArgs
-            {
-                RemoteEndPoint = _remoteEndPoint
-            };
-            args.Completed += SocketConnect_Completed;
-            args.UserToken = autoResetEvent;
-            bool isPending = _socket.ConnectAsync(args);
-            if (isPending)
-            {
-                await autoResetEvent.WaitOne();
-            }
+            SocketAsyncEventArgs args = await SocketHelper.ConnectAsync(_socket, _remoteEndPoint);
+
             if (args.LastOperation != SocketAsyncOperation.Connect)
             {
                 return false;
@@ -79,9 +79,21 @@ namespace Microsoft.BAL
             return IsInitialized = true;
         }
 
+        public void Dispose()
+        {
+            if (IsInitialized)
+            {
+                _socket.Shutdown(SocketShutdown.Both);
+            }
+            _socket.Dispose();
+        }
+
+        #endregion
+
+        #region Private & Internal methods
+
         private void ReadBoldSettings(string data)
         {
-
             using (BoldEventsStreamReader eventReader = new BoldEventsStreamReader(data))
             {
                 Dictionary<string, string> configValues = eventReader.GetSetting();
@@ -126,26 +138,10 @@ namespace Microsoft.BAL
 
         private static async Task<string> GetEventListAsync(Socket socket, IPAddress ip)
         {
-            AsyncAutoResetEvent autoResetEvent = new AsyncAutoResetEvent();
             byte[] buffer = CreateEventListRequest(ip);
-            SocketAsyncEventArgs args = new SocketAsyncEventArgs();
-            args.SetBuffer(buffer, 0, buffer.Length);
-            args.UserToken = autoResetEvent;
-            args.Completed += SocketConnect_Completed;
-            bool isPending = socket.SendAsync(args);
-            if (isPending)
-            {
-                await autoResetEvent.WaitOne();
-            }
-            buffer = new byte[65536];
-            args.SetBuffer(buffer, 0, buffer.Length);
-            isPending = socket.ReceiveAsync(args);
-            if (isPending)
-            {
-                await autoResetEvent.WaitOne();
-            }
-
-            return Encoding.ASCII.GetString(args.Buffer, 0, args.BytesTransferred);
+            await SocketHelper.SendAsync(socket, buffer);
+            SocketAsyncEventArgs saea = await SocketHelper.ReceiveAsync(socket);
+            return Encoding.ASCII.GetString(saea.Buffer, 0, saea.BytesTransferred);
         }
 
         private static byte[] CreateEventListRequest(IPAddress ip)
@@ -159,11 +155,6 @@ namespace Microsoft.BAL
             return Encoding.ASCII.GetBytes(request);
         }
 
-        private static void SocketConnect_Completed(object sender, SocketAsyncEventArgs e)
-        {
-            AsyncAutoResetEvent autoResetEvent = (AsyncAutoResetEvent) e.UserToken;
-            autoResetEvent.Set();
-        }
 
         internal void OnBoldEvent(BoldBaseEvent boldEvent)
         {
@@ -171,19 +162,30 @@ namespace Microsoft.BAL
             BoldEvent?.Invoke(this, args);
         }
 
-        public void Dispose()
+        #endregion
+
+        protected virtual void OnBoldImageEventHandler(BoldImageEventHandlerArgs args)
         {
-            if (IsInitialized)
-            {
-                _socket.Shutdown(SocketShutdown.Both);
-            }
-            _socket.Dispose();
+            BoldImageEventHandler?.Invoke(this, args);
         }
     }
 
     public delegate void BoldEventHandler(object sender, BoldEventHandlerArgs args);
 
+    public delegate void BoldImageEventHandler(object sender, BoldImageEventHandlerArgs args);
+
     public class BoldEventHandlerArgs
     {
+    }
+
+    public class BoldImageEventHandlerArgs : BoldEventHandlerArgs
+    {
+        //public BoldImageEventHandlerArgs(ImageStream imageStream)
+        //{
+        //    ImageStream = imageStream;
+        //}
+
+        //Windows.Graphics.Imaging.SoftwareBitmap
+        //    Windows.Graphics.Imaging.ImageStream ImageStream;
     }
 }

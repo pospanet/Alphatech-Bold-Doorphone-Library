@@ -14,9 +14,10 @@ namespace Microsoft.BAL.Client
         public MainPage()
         {
             this.InitializeComponent();
+            this.Loaded += MainPage_Loaded;
         }
 
-        private async void button_Click(object sender, Windows.UI.Xaml.RoutedEventArgs e)
+        private static async void MainPage_Loaded(object sender, Windows.UI.Xaml.RoutedEventArgs e)
         {
             Doorphone doorphone = new Doorphone(new IPAddress(new byte[] { 192, 168, 1, 250 }));
             await doorphone.InitializeAsync();
